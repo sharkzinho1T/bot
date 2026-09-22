@@ -34,31 +34,18 @@ const commands = [
   new SlashCommandBuilder()
     .setName('orion')
     .setDescription('Comandos do Orion')
-    .addSubcommand(sub =>
-      sub.setName('status').setDescription('Status do Orion')
-    )
-    .addSubcommand(sub =>
-      sub.setName('painel').setDescription('Link do painel')
-    )
-    .addSubcommand(sub =>
-      sub.setName('membros').setDescription('Total de membros')
-    )
-    .addSubcommand(sub =>
-      sub.setName('links').setDescription('Total de links')
-    )
-    .addSubcommand(sub =>
-      sub.setName('servidores').setDescription('Servidores do bot')
-    )
-    .addSubcommand(sub =>
-      sub.setName('dashboard').setDescription('Endereço do dashboard')
-    ),
+    .addSubcommand(sub => sub.setName('status').setDescription('Status do Orion'))
+    .addSubcommand(sub => sub.setName('painel').setDescription('Link do painel'))
+    .addSubcommand(sub => sub.setName('membros').setDescription('Total de membros'))
+    .addSubcommand(sub => sub.setName('links').setDescription('Total de links'))
+    .addSubcommand(sub => sub.setName('servidores').setDescription('Servidores do bot'))
+    .addSubcommand(sub => sub.setName('dashboard').setDescription('Endereço do dashboard')),
 
   new SlashCommandBuilder()
     .setName('meu-servidor')
     .setDescription('Configurações do seu servidor')
     .addSubcommand(sub =>
-      sub.setName('info')
-        .setDescription('Veja as configurações atuais do servidor')
+      sub.setName('info').setDescription('Veja as configurações atuais do servidor')
     )
     .addSubcommand(sub =>
       sub.setName('cargo-verificado')
@@ -70,13 +57,13 @@ const commands = [
         )
     )
     .addSubcommand(sub =>
-      sub.setName('remover-cargo')
-        .setDescription('Remove o cargo automático de verificação')
+      sub.setName('remover-cargo').setDescription('Remove o cargo automático de verificação')
     ),
 
   new SlashCommandBuilder()
     .setName('criar-cargo-sem-verificacao')
     .setDescription('Cria o cargo "NÃO VERIFICADO ❎" sem permissão de ver ou falar em nenhum canal')
+
 ].map(c => c.toJSON())
 
 /* ── HEARTBEAT ───────────────────────────────── */
@@ -110,25 +97,18 @@ async function heartbeat() {
   }
 }
 
-/* ── HELPER: checa se membro tem cargo acima do cargo alvo ── */
+/* ── HELPERS ─────────────────────────────────── */
 
 function memberIsAboveRole(member, role) {
-  // pega a posição mais alta dos cargos do membro
-  const highestPos = member.roles.cache.reduce(
-    (max, r) => Math.max(max, r.position),
-    0
-  )
-  // o membro precisa ter pelo menos um cargo acima do cargo alvo
+  const highestPos = member.roles.cache.reduce((max, r) => Math.max(max, r.position), 0)
   return highestPos > role.position
 }
-
-/* ── HELPER: busca/salva config do servidor via server API ── */
 
 async function getGuildConfig(guildId) {
   try {
     const headers = {}
     if (HEARTBEAT_SECRET) headers['x-heartbeat-secret'] = HEARTBEAT_SECRET
-    const r    = await fetch(`${SERVER_URL}/api/guild-config/${guildId}`, { headers })
+    const r = await fetch(`${SERVER_URL}/api/guild-config/${guildId}`, { headers })
     if (!r.ok) return null
     return await r.json()
   } catch {
@@ -138,9 +118,7 @@ async function getGuildConfig(guildId) {
 
 async function setGuildConfig(guildId, verifyRoleId) {
   try {
-    const headers = {
-      'Content-Type': 'application/json'
-    }
+    const headers = { 'Content-Type': 'application/json' }
     if (HEARTBEAT_SECRET) headers['x-heartbeat-secret'] = HEARTBEAT_SECRET
     const r = await fetch(`${SERVER_URL}/api/guild-config/${guildId}`, {
       method: 'POST',
@@ -193,8 +171,7 @@ client.on('interactionCreate', async interaction => {
     const sub = interaction.options.getSubcommand()
 
     if (sub === 'status') {
-      const totalMembers = [...client.guilds.cache.values()]
-        .reduce((t, g) => t + (g.memberCount || 0), 0)
+      const totalMembers = [...client.guilds.cache.values()].reduce((t, g) => t + (g.memberCount || 0), 0)
       return interaction.reply({
         embeds: [
           new EmbedBuilder()
@@ -202,9 +179,9 @@ client.on('interactionCreate', async interaction => {
             .setDescription('Status atual do sistema.')
             .addFields(
               { name: '🤖 Bot',        value: client.user?.tag ?? '—', inline: true },
-              { name: '🏠 Servidores', value: String(client.guilds.cache.size),      inline: true },
-              { name: '👥 Membros',    value: String(totalMembers),                   inline: true },
-              { name: '📡 Ping',       value: `${client.ws.ping}ms`,                 inline: true }
+              { name: '🏠 Servidores', value: String(client.guilds.cache.size), inline: true },
+              { name: '👥 Membros',    value: String(totalMembers),             inline: true },
+              { name: '📡 Ping',       value: `${client.ws.ping}ms`,           inline: true }
             )
         ]
       })
@@ -215,8 +192,7 @@ client.on('interactionCreate', async interaction => {
     }
 
     if (sub === 'membros') {
-      const members = [...client.guilds.cache.values()]
-        .reduce((t, g) => t + (g.memberCount || 0), 0)
+      const members = [...client.guilds.cache.values()].reduce((t, g) => t + (g.memberCount || 0), 0)
       return interaction.reply(`👥 **Membros:** ${members}`)
     }
 
@@ -250,28 +226,20 @@ client.on('interactionCreate', async interaction => {
     const guild  = interaction.guild
 
     if (!guild) {
-      return interaction.reply({
-        content: '❌ Este comando só pode ser usado dentro de um servidor.',
-        ephemeral: true
-      })
+      return interaction.reply({ content: '❌ Este comando só pode ser usado dentro de um servidor.', ephemeral: true })
     }
 
-    /* ── /meu-servidor info ── */
     if (sub === 'info') {
-      const config = await getGuildConfig(guild.id)
-
-      const roleText = config?.verify_role_id
-        ? `<@&${config.verify_role_id}>`
-        : '❌ Nenhum cargo configurado'
-
+      const config   = await getGuildConfig(guild.id)
+      const roleText = config?.verify_role_id ? `<@&${config.verify_role_id}>` : '❌ Nenhum cargo configurado'
       return interaction.reply({
         embeds: [
           new EmbedBuilder()
             .setTitle(`⚙️ Configurações — ${guild.name}`)
             .addFields(
-              { name: '🏠 Servidor',         value: guild.name,                     inline: true },
-              { name: '🆔 ID',               value: guild.id,                       inline: true },
-              { name: '✅ Cargo verificado', value: roleText,                        inline: false }
+              { name: '🏠 Servidor',         value: guild.name, inline: true },
+              { name: '🆔 ID',               value: guild.id,   inline: true },
+              { name: '✅ Cargo verificado', value: roleText,    inline: false }
             )
             .setFooter({ text: 'Use /meu-servidor cargo-verificado para configurar' })
         ],
@@ -279,22 +247,17 @@ client.on('interactionCreate', async interaction => {
       })
     }
 
-    /* ── /meu-servidor cargo-verificado ── */
     if (sub === 'cargo-verificado') {
       const role = interaction.options.getRole('cargo')
 
-      // checa se quem usou o comando tem cargo acima do cargo alvo
       if (!memberIsAboveRole(member, role)) {
         return interaction.reply({
-          content: `❌ Você precisa ter um cargo **acima** de ${role} para configurá-lo como cargo de verificação.`,
+          content: `❌ Você precisa ter um cargo **acima** de ${role} para configurá-lo.`,
           ephemeral: true
         })
       }
 
-      // checa se o bot tem cargo acima do cargo alvo (pra poder atribuir)
-      const botMember = guild.members.cache.get(client.user.id)
-        ?? await guild.members.fetch(client.user.id)
-
+      const botMember = guild.members.cache.get(client.user.id) ?? await guild.members.fetch(client.user.id)
       if (!memberIsAboveRole(botMember, role)) {
         return interaction.reply({
           content: `❌ Meu cargo precisa estar **acima** de ${role} na hierarquia para eu poder atribuí-lo.`,
@@ -303,37 +266,28 @@ client.on('interactionCreate', async interaction => {
       }
 
       const ok = await setGuildConfig(guild.id, role.id)
-
       if (!ok) {
-        return interaction.reply({
-          content: '❌ Erro ao salvar configuração. Tente novamente.',
-          ephemeral: true
-        })
+        return interaction.reply({ content: '❌ Erro ao salvar configuração. Tente novamente.', ephemeral: true })
       }
 
       return interaction.reply({
         embeds: [
           new EmbedBuilder()
             .setTitle('✅ Cargo de verificação configurado!')
-            .setDescription(`A partir de agora, quem se verificar via link de auth receberá automaticamente o cargo ${role}.`)
+            .setDescription(`A partir de agora, quem se verificar receberá automaticamente o cargo ${role}.`)
             .setColor(0x3ba55d)
         ],
         ephemeral: true
       })
     }
 
-    /* ── /meu-servidor remover-cargo ── */
     if (sub === 'remover-cargo') {
       const config = await getGuildConfig(guild.id)
 
       if (!config?.verify_role_id) {
-        return interaction.reply({
-          content: '❌ Nenhum cargo de verificação configurado.',
-          ephemeral: true
-        })
+        return interaction.reply({ content: '❌ Nenhum cargo de verificação configurado.', ephemeral: true })
       }
 
-      // checa se tem cargo acima do cargo configurado
       const role = guild.roles.cache.get(config.verify_role_id)
       if (role && !memberIsAboveRole(member, role)) {
         return interaction.reply({
@@ -343,21 +297,13 @@ client.on('interactionCreate', async interaction => {
       }
 
       const ok = await setGuildConfig(guild.id, null)
-
       if (!ok) {
-        return interaction.reply({
-          content: '❌ Erro ao remover configuração.',
-          ephemeral: true
-        })
+        return interaction.reply({ content: '❌ Erro ao remover configuração.', ephemeral: true })
       }
 
-      return interaction.reply({
-        content: '✅ Cargo de verificação removido com sucesso.',
-        ephemeral: true
-      })
+      return interaction.reply({ content: '✅ Cargo de verificação removido com sucesso.', ephemeral: true })
     }
   }
-})
 
   /* ── /criar-cargo-sem-verificacao ── */
   if (interaction.commandName === 'criar-cargo-sem-verificacao') {
@@ -365,13 +311,9 @@ client.on('interactionCreate', async interaction => {
     const member = interaction.member
 
     if (!guild) {
-      return interaction.reply({
-        content: '❌ Este comando só pode ser usado dentro de um servidor.',
-        ephemeral: true
-      })
+      return interaction.reply({ content: '❌ Este comando só pode ser usado dentro de um servidor.', ephemeral: true })
     }
 
-    // só quem tem permissão de gerenciar cargos/canais pode usar
     if (!member.permissions.has(PermissionFlagsBits.ManageRoles)) {
       return interaction.reply({
         content: '❌ Você precisa da permissão **Gerenciar Cargos** para usar este comando.',
@@ -382,24 +324,19 @@ client.on('interactionCreate', async interaction => {
     await interaction.deferReply({ ephemeral: true })
 
     try {
-      // verifica se o cargo já existe
       const existing = guild.roles.cache.find(r => r.name === 'NÃO VERIFICADO ❎')
       if (existing) {
-        return interaction.editReply({
-          content: `❌ O cargo **NÃO VERIFICADO ❎** já existe: ${existing}`,
-        })
+        return interaction.editReply({ content: `❌ O cargo **NÃO VERIFICADO ❎** já existe: ${existing}` })
       }
 
-      // cria o cargo sem permissões
       const role = await guild.roles.create({
         name: 'NÃO VERIFICADO ❎',
         permissions: [],
         reason: 'Cargo criado pelo Orion V2 — sem acesso a canais'
       })
 
-      // busca todos os canais de texto e voz
       const channels = [...guild.channels.cache.values()].filter(
-        c => c.type === 0 || c.type === 2 || c.type === 4 // GUILD_TEXT, GUILD_VOICE, GUILD_CATEGORY
+        c => c.type === 0 || c.type === 2 || c.type === 4
       )
 
       let success = 0
@@ -424,23 +361,20 @@ client.on('interactionCreate', async interaction => {
             .setTitle('✅ Cargo criado com sucesso!')
             .setDescription(`O cargo ${role} foi criado e bloqueado em todos os canais.`)
             .addFields(
-              { name: '📋 Nome',             value: 'NÃO VERIFICADO ❎',       inline: true },
-              { name: '🔒 Canais bloqueados', value: String(success),           inline: true },
-              { name: '⚠️ Falhas',            value: String(failed),            inline: true }
+              { name: '📋 Nome',              value: 'NÃO VERIFICADO ❎', inline: true },
+              { name: '🔒 Canais bloqueados', value: String(success),     inline: true },
+              { name: '⚠️ Falhas',            value: String(failed),      inline: true }
             )
             .addFields({
               name: '💡 Próximo passo',
-              value: 'Use `/meu-servidor cargo-verificado` para definir o cargo que os membros recebem **após** se verificarem.'
+              value: 'Use `/meu-servidor cargo-verificado` para definir o cargo que os membros recebem após se verificarem.'
             })
             .setColor(0x3ba55d)
         ]
       })
-
     } catch (err) {
       console.error('[ORION] criar-cargo-sem-verificacao:', err.message)
-      return interaction.editReply({
-        content: `❌ Erro ao criar o cargo: ${err.message}`
-      })
+      return interaction.editReply({ content: `❌ Erro ao criar o cargo: ${err.message}` })
     }
   }
 })
