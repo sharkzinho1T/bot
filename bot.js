@@ -58,6 +58,18 @@ const commands = [
     )
     .addSubcommand(sub =>
       sub.setName('remover-cargo').setDescription('Remove o cargo automático de verificação')
+    )
+    .addSubcommand(sub =>
+      sub.setName('cargo-nao-verificado')
+        .setDescription('Define o cargo removido automaticamente após verificação')
+        .addRoleOption(opt =>
+          opt.setName('cargo')
+            .setDescription('Cargo a ser removido após verificação')
+            .setRequired(true)
+        )
+    )
+    .addSubcommand(sub =>
+      sub.setName('remover-cargo-nao-verificado').setDescription('Remove a configuração do cargo não verificado')
     ),
 
   new SlashCommandBuilder()
@@ -116,14 +128,14 @@ async function getGuildConfig(guildId) {
   }
 }
 
-async function setGuildConfig(guildId, verifyRoleId) {
+async function setGuildConfig(guildId, verifyRoleId, unverifiedRoleId) {
   try {
     const headers = { 'Content-Type': 'application/json' }
     if (HEARTBEAT_SECRET) headers['x-heartbeat-secret'] = HEARTBEAT_SECRET
     const r = await fetch(`${SERVER_URL}/api/guild-config/${guildId}`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ verify_role_id: verifyRoleId })
+      body: JSON.stringify({ verify_role_id: verifyRoleId, unverified_role_id: unverifiedRoleId })
     })
     return r.ok
   } catch {
@@ -265,7 +277,8 @@ client.on('interactionCreate', async interaction => {
         })
       }
 
-      const ok = await setGuildConfig(guild.id, role.id)
+      const config = await getGuildConfig(guild.id)
+      const ok = await setGuildConfig(guild.id, role.id, config?.unverified_role_id ?? null)
       if (!ok) {
         return interaction.reply({ content: '❌ Erro ao salvar configuração. Tente novamente.', ephemeral: true })
       }
@@ -296,12 +309,54 @@ client.on('interactionCreate', async interaction => {
         })
       }
 
-      const ok = await setGuildConfig(guild.id, null)
+      const ok = await setGuildConfig(guild.id, null, config.unverified_role_id ?? null)
       if (!ok) {
         return interaction.reply({ content: '❌ Erro ao remover configuração.', ephemeral: true })
       }
 
       return interaction.reply({ content: '✅ Cargo de verificação removido com sucesso.', ephemeral: true })
+    }
+
+    if (sub === 'cargo-nao-verificado') {
+      const role = interaction.options.getRole('cargo')
+
+      if (!memberIsAboveRole(member, role)) {
+        return interaction.reply({
+          content: `❌ Você precisa ter um cargo **acima** de ${role} para configurá-lo.`,
+          ephemeral: true
+        })
+      }
+
+      const config = await getGuildConfig(guild.id)
+      const ok = await setGuildConfig(guild.id, config?.verify_role_id ?? null, role.id)
+      if (!ok) {
+        return interaction.reply({ content: '❌ Erro ao salvar configuração.', ephemeral: true })
+      }
+
+      return interaction.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setTitle('✅ Cargo não verificado configurado!')
+            .setDescription(`A partir de agora, o cargo ${role} será removido automaticamente após a verificação.`)
+            .setColor(0x3ba55d)
+        ],
+        ephemeral: true
+      })
+    }
+
+    if (sub === 'remover-cargo-nao-verificado') {
+      const config = await getGuildConfig(guild.id)
+
+      if (!config?.unverified_role_id) {
+        return interaction.reply({ content: '❌ Nenhum cargo não verificado configurado.', ephemeral: true })
+      }
+
+      const ok = await setGuildConfig(guild.id, config?.verify_role_id ?? null, null)
+      if (!ok) {
+        return interaction.reply({ content: '❌ Erro ao remover configuração.', ephemeral: true })
+      }
+
+      return interaction.reply({ content: '✅ Cargo não verificado removido com sucesso.', ephemeral: true })
     }
   }
 
